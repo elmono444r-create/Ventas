@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A&M Systems - Control Total</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        :root {
+            --dark: #1e272e;
+            --punto: #0984e3;
+            --bio: #e67e22; 
+            --pm: #6c5ce7;
+            --bs: #f1c40f;
+            --usd: #27ae60;
+            --bg: #f8f9fa;
+        }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg); padding-bottom: 80px; color: #2d3436; }
+        
+        .header { background: var(--dark); color: white; padding: 20px 15px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .tasa-box { margin-top: 8px; display: inline-block; background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; }
+
+        .container { padding: 15px; }
+        
+        .card-pago { background: white; padding: 15px; border-radius: 12px; margin-bottom: 12px; border-left: 10px solid #ccc; box-shadow: 0 3px 6px rgba(0,0,0,0.05); }
+        .c-punto { border-left-color: var(--punto); }
+        .c-bio { border-left-color: var(--bio); }
+        .c-pm { border-left-color: var(--pm); }
+        .c-bs { border-left-color: var(--bs); }
+        .c-usd { border-left-color: var(--usd); }
+        
+        label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 0.8rem; text-transform: uppercase; color: #636e72; }
+        input { width: 100%; padding: 12px; border: 2px solid #edf2f7; border-radius: 8px; box-sizing: border-box; font-size: 1.1rem; transition: 0.3s; }
+        input:focus { border-color: var(--punto); outline: none; background: #f0f7ff; }
+
+        .nav { position: fixed; bottom: 0; width: 100%; background: white; display: flex; height: 70px; box-shadow: 0 -5px 15px rgba(0,0,0,0.08); }
+        .nav-btn { flex: 1; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 0.75rem; font-weight: bold; color: #b2bec3; cursor: pointer; transition: 0.3s; }
+        .nav-btn.active { color: var(--punto); background: #f1f8ff; border-top: 4px solid var(--punto); }
+
+        .panel { display: none; animation: fadeIn 0.3s ease; }
+        .panel.active { display: block; }
+
+        .btn-accion { background: var(--dark); color: white; border: none; padding: 18px; width: 100%; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        .btn-save { background: var(--usd); }
+        
+        #reader-vender, #reader-agregar { width: 100%; border-radius: 15px; overflow: hidden; display: none; margin-bottom: 15px; border: 3px solid var(--dark); }
+        
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-top: 10px; }
+        th { background: #f1f2f6; padding: 12px; text-align: left; font-size: 0.8rem; color: #57606f; }
+        td { padding: 12px; border-bottom: 1px solid #f1f2f6; font-size: 0.9rem; }
+
+        .tag-pago { font-size: 0.65rem; padding: 2px 5px; border-radius: 4px; color: white; font-weight: bold; display: block; margin-top: 2px; text-align: center; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2 style="margin:0; letter-spacing: 1px;">A&M <span style="color:var(--punto)">SYSTEMS</span></h2>
+        <div class="tasa-box">
+            Tasa BCV: <b id="tasaDisplay">0.00</b> 
+            <button onclick="editarTasa()" style="background:none; border:none; color:var(--punto); font-weight:bold; margin-left:10px; cursor:pointer;">✎</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="sec-vender" class="panel active">
+            <button class="btn-accion" onclick="encenderCamara('vender')">📸 ESCANEAR PRODUCTO</button>
+            <div id="reader-vender"></div>
+
+            <div id="area-cobro" style="display:none; background:white; padding:20px; border-radius:15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05);">
+                <h3 id="p-nombre" style="margin:0; color:var(--dark); text-align:center;"></h3>
+                <p id="p-stock-info" style="text-align:center; font-size:0.8rem; color:#7f8c8d; margin-top:5px;"></p>
+                <h2 id="p-precio-bs" style="text-align:center; color:var(--punto); font-size: 2rem; margin:10px 0;"></h2>
+
+                <div class="card-pago c-punto"><label>Punto de Venta (Bs)</label><input type="number" id="i-punto" placeholder="0.00" oninput="sumarPago()"></div>
+                <div class="card-pago c-bio"><label>Biopago (Bs)</label><input type="number" id="i-bio" placeholder="0.00" oninput="sumarPago()"></div>
+                <div class="card-pago c-pm"><label>Pago Móvil (Bs)</label><input type="number" id="i-pm" placeholder="0.00" oninput="sumarPago()"></div>
+                <div class="card-pago c-bs"><label>Billetes Bolívares</label><input type="number" id="i-bs" placeholder="0.00" oninput="sumarPago()"></div>
+                <div class="card-pago c-usd"><label>Billetes Dólares ($)</label><input type="number" id="i-usd" placeholder="0.00" oninput="sumarPago()"></div>
+
+                <div id="pago-status" style="text-align:center; font-weight:bold; padding:15px; border:2px dashed #ccc; border-radius:12px; margin:20px 0; background:#f9f9f9;">Faltan: Bs. 0.00</div>
+                
+                <button id="btn-confirmar" class="btn-accion btn-save" style="display:none;" onclick="finalizarVenta()">✅ REGISTRAR FACTURA</button>
+                <button onclick="cancelarTodo()" style="width:100%; background:none; border:none; color:#a4b0be; font-weight:bold; cursor:pointer;">Cancelar</button>
+            </div>
+        </div>
+
+        <div id="sec-productos" class="panel">
+            <div style="background:white; padding:20px; border-radius:15px; margin-bottom:20px; border: 1px solid #ddd;">
+                <h3 id="titulo-form" style="margin-top:0">Gestionar Producto</h3>
+                <button id="btn-scan-stock" class="btn-accion" style="background:#57606f;" onclick="encenderCamara('agregar')">📸 ESCANEAR CÓDIGO</button>
+                <div id="reader-agregar"></div>
+                
+                <label>Código</label><input type="text" id="new-codigo" placeholder="Escriba o escanee..." style="margin-bottom:12px;">
+                <label>Nombre</label><input type="text" id="new-nombre" placeholder="Nombre del producto" style="margin-bottom:12px;">
+                <label>Precio $</label><input type="number" id="new-precio" step="0.01" placeholder="0.00" style="margin-bottom:12px;">
+                <label>Cantidad en Stock</label><input type="number" id="new-stock" placeholder="0" value="0">
+                
+                <button class="btn-accion btn-save" style="margin-top:20px;" onclick="registrarEnDB()">GUARDAR / ACTUALIZAR</button>
+                <button id="btn-cancel-edit" onclick="limpiarFormStock()" style="display:none; width:100%; background:none; border:none; color:red;">Cancelar Edición</button>
+            </div>
+            <input type="text" id="searchStock" class="search-bar" placeholder="🔍 Buscar en inventario..." oninput="actualizarInterfaz()">
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead><tr><th>Producto</th><th>Cant.</th><th>Precio $</th><th style="text-align:center;">Acciones</th></tr></thead>
+                    <tbody id="tabla-prods"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="sec-historial" class="panel">
+            <h3 style="padding-left:10px;">Ventas del día</h3>
+            <table>
+                <thead><tr><th>Hora</th><th>Producto</th><th>Pago Recibido</th></tr></thead>
+                <tbody id="tabla-ventas"></tbody>
+            </table>
+        </div>
+
+        <div id="sec-cierre" class="panel">
+            <div id="resumen-final" style="background:var(--dark); color:white; padding:25px; border-radius:20px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);"></div>
+            <button onclick="borrarVentas()" style="width:100%; margin-top:30px; border:2px solid #ff4757; color:#ff4757; background:none; padding:15px; border-radius:12px; font-weight:bold; cursor:pointer;">Reiniciar Día y Caja</button>
+        </div>
+    </div>
+
+    <div class="nav">
+        <div class="nav-btn active" onclick="navegar('vender', this)"><i>🛒</i>Vender</div>
+        <div class="nav-btn" onclick="navegar('productos', this)"><i>📦</i>Stock</div>
+        <div class="nav-btn" onclick="navegar('historial', this)"><i>📄</i>Historial</div>
+        <div class="nav-btn" onclick="navegar('cierre', this)"><i>📊</i>Cierre</div>
+    </div>
+
+    <script>
+        let productoCargado = null;
+        let codigoCargado = null;
+
+        window.onload = () => {
+            if(!localStorage.getItem('tasa')) localStorage.setItem('tasa', '55.00');
+            if(!localStorage.getItem('db_p')) localStorage.setItem('db_p', '{}');
+            if(!localStorage.getItem('ventas')) localStorage.setItem('ventas', '[]');
+            actualizarInterfaz();
+        };
+
+        function navegar(sec, btn) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('sec-' + sec).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if(sec !== 'vender') cancelarTodo();
+            actualizarInterfaz();
+        }
+
+        function encenderCamara(modo) {
+            const idReader = modo === 'vender' ? 'reader-vender' : 'reader-agregar';
+            document.getElementById(idReader).style.display = 'block';
+            const scanner = new Html5Qrcode(idReader);
+            scanner.start({ facingMode: "environment" }, { fps: 20, qrbox: 260 }, (codigo) => {
+                scanner.stop().then(() => {
+                    document.getElementById(idReader).style.display = 'none';
+                    if(modo === 'vender') {
+                        let db = JSON.parse(localStorage.getItem('db_p'));
+                        if(db[codigo]) prepararVenta(codigo, db[codigo]);
+                        else alert("Producto no registrado.");
+                    } else {
+                        document.getElementById('new-codigo').value = codigo;
+                    }
+                });
+            });
+        }
+
+        function prepararVenta(codigo, p) {
+            codigoCargado = codigo;
+            productoCargado = p;
+            let tasa = parseFloat(localStorage.getItem('tasa'));
+            document.getElementById('p-nombre').innerText = p.nombre;
+            document.getElementById('p-stock-info').innerText = "Disponible: " + (p.stock || 0) + " unidades";
+            document.getElementById('p-precio-bs').innerText = "Bs. " + (p.precio * tasa).toLocaleString('es-VE',{minimumFractionDigits:2});
+            document.getElementById('area-cobro').style.display = 'block';
+            sumarPago();
+        }
+
+        function sumarPago() {
+            let tasa = parseFloat(localStorage.getItem('tasa'));
+            let totalBs = productoCargado.precio * tasa;
+            let pagado = (parseFloat(document.getElementById('i-punto').value)||0) +
+                         (parseFloat(document.getElementById('i-bio').value)||0) +
+                         (parseFloat(document.getElementById('i-pm').value)||0) +
+                         (parseFloat(document.getElementById('i-bs').value)||0) +
+                         ((parseFloat(document.getElementById('i-usd').value)||0) * tasa);
+            
+            let falta = totalBs - pagado;
+            let status = document.getElementById('pago-status');
+            if(falta <= 0.10) {
+                status.innerText = "✓ MONTO CUBIERTO"; status.style.color="white"; status.style.background="#27ae60";
+                document.getElementById('btn-confirmar').style.display = 'block';
+            } else {
+                status.innerText = "FALTAN: Bs. " + (falta > 0 ? falta.toFixed(2) : "0.00"); status.style.color="#d63031"; status.style.background="#f9f9f9";
+                document.getElementById('btn-confirmar').style.display = 'none';
+            }
+        }
+
+        function finalizarVenta() {
+            let db = JSON.parse(localStorage.getItem('db_p'));
+            if(db[codigoCargado].stock > 0) {
+                db[codigoCargado].stock -= 1;
+                localStorage.setItem('db_p', JSON.stringify(db));
+            } else {
+                if(!confirm("El producto no tiene stock. ¿Continuar?")) return;
+            }
+
+            let v = JSON.parse(localStorage.getItem('ventas'));
+            v.unshift({
+                hora: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
+                nombre: productoCargado.nombre,
+                precioOriginalUsd: productoCargado.precio,
+                punto: parseFloat(document.getElementById('i-punto').value)||0,
+                bio: parseFloat(document.getElementById('i-bio').value)||0,
+                pm: parseFloat(document.getElementById('i-pm').value)||0,
+                bs: parseFloat(document.getElementById('i-bs').value)||0,
+                usd: parseFloat(document.getElementById('i-usd').value)||0
+            });
+            localStorage.setItem('ventas', JSON.stringify(v));
+            cancelarTodo(); 
+            actualizarInterfaz();
+            alert("Venta registrada");
+        }
+
+        function registrarEnDB() {
+            let cod = document.getElementById('new-codigo').value;
+            let nom = document.getElementById('new-nombre').value.toUpperCase();
+            let pre = document.getElementById('new-precio').value;
+            let sto = document.getElementById('new-stock').value;
+            if(!cod || !nom || !pre) return alert("Faltan datos");
+            let db = JSON.parse(localStorage.getItem('db_p'));
+            db[cod] = { nombre: nom, precio: parseFloat(pre), stock: parseInt(sto) || 0 };
+            localStorage.setItem('db_p', JSON.stringify(db));
+            limpiarFormStock();
+            actualizarInterfaz();
+            alert("Inventario actualizado");
+        }
+
+        function editarProd(cod) {
+            let db = JSON.parse(localStorage.getItem('db_p'));
+            let p = db[cod];
+            document.getElementById('new-codigo').value = cod;
+            document.getElementById('new-nombre').value = p.nombre;
+            document.getElementById('new-precio').value = p.precio;
+            document.getElementById('new-stock').value = p.stock || 0;
+            document.getElementById('titulo-form').innerText = "Editando Producto";
+            document.getElementById('btn-cancel-edit').style.display = 'block';
+            window.scrollTo(0,0);
+        }
+
+        function limpiarFormStock() {
+            document.getElementById('new-codigo').value = '';
+            document.getElementById('new-nombre').value = '';
+            document.getElementById('new-precio').value = '';
+            document.getElementById('new-stock').value = '0';
+            document.getElementById('titulo-form').innerText = "Gestionar Producto";
+            document.getElementById('btn-cancel-edit').style.display = 'none';
+        }
+
+        function actualizarInterfaz() {
+            let tasa = parseFloat(localStorage.getItem('tasa'));
+            document.getElementById('tasaDisplay').innerText = tasa.toFixed(2);
+            let db = JSON.parse(localStorage.getItem('db_p'));
+            
+            // Render Inventario
+            let filter = document.getElementById('searchStock').value.toUpperCase();
+            let tp = document.getElementById('tabla-prods'); tp.innerHTML = '';
+            for(let c in db) {
+                if(db[c].nombre.includes(filter) || c.includes(filter)) {
+                    let colorStock = (db[c].stock <= 2) ? 'color:red; font-weight:bold;' : '';
+                    tp.innerHTML += `<tr><td><b>${db[c].nombre}</b><br><small>${c}</small></td><td style="${colorStock}">${db[c].stock || 0}</td><td>$${db[c].precio.toFixed(2)}</td><td style="text-align:center;"><button onclick="editarProd('${c}')" style="border:none; background:none; font-size:1.2rem; margin-right:10px;">✏️</button><button onclick="borrarP('${c}')" style="border:none; background:none; font-size:1.2rem;">🗑️</button></td></tr>`;
+                }
+            }
+
+            // Render Historial y Cálculo de Cierre
+            let v = JSON.parse(localStorage.getItem('ventas'));
+            let tv = document.getElementById('tabla-ventas'); tv.innerHTML = '';
+            let sPun=0, sBio=0, sPm=0, sBs=0, sUsd=0;
+            
+            v.forEach(f => {
+                sPun+=f.punto; sBio+=f.bio; sPm+=f.pm; sBs+=f.bs; sUsd+=f.usd;
+                
+                // Determinar qué mostrar como monto principal en el historial
+                let montoPrincipal = "";
+                if(f.usd > 0) {
+                    montoPrincipal = `<b style="color:var(--usd)">$ ${f.usd.toFixed(2)}</b>`;
+                } else {
+                    let totalBsVenta = f.punto + f.bio + f.pm + f.bs;
+                    montoPrincipal = `<b style="color:var(--punto)">Bs. ${totalBsVenta.toFixed(2)}</b>`;
+                }
+
+                // Crear etiquetas de métodos usados
+                let etiquetas = "";
+                if(f.punto > 0) etiquetas += `<span class="tag-pago" style="background:var(--punto)">Punto</span>`;
+                if(f.bio > 0) etiquetas += `<span class="tag-pago" style="background:var(--bio)">Bio</span>`;
+                if(f.pm > 0) etiquetas += `<span class="tag-pago" style="background:var(--pm)">P.Móvil</span>`;
+                if(f.bs > 0) etiquetas += `<span class="tag-pago" style="background:var(--bs); color:black">Efect. Bs</span>`;
+                if(f.usd > 0) etiquetas += `<span class="tag-pago" style="background:var(--usd)">Efect. $</span>`;
+
+                tv.innerHTML += `<tr>
+                    <td>${f.hora}</td>
+                    <td><b>${f.nombre}</b><br><small style="color:#7f8c8d">Ref: $${f.precioOriginalUsd.toFixed(2)}</small></td>
+                    <td>${montoPrincipal} ${etiquetas}</td>
+                </tr>`;
+            });
+
+            let totalEnBolivares = sPun + sBio + sPm + sBs;
+
+            document.getElementById('resumen-final').innerHTML = `
+                <h3 style="text-align:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:15px;">CUADRE DE CAJA</h3>
+                <div style="line-height:2.2">
+                    <div style="display:flex; justify-content:space-between;"><span>💳 Punto:</span><b>Bs. ${sPun.toFixed(2)}</b></div>
+                    <div style="display:flex; justify-content:space-between; color:var(--bio)"><span>🔋 Biopago:</span><b>Bs. ${sBio.toFixed(2)}</b></div>
+                    <div style="display:flex; justify-content:space-between;"><span>📱 P. Móvil:</span><b>Bs. ${sPm.toFixed(2)}</b></div>
+                    <div style="display:flex; justify-content:space-between;"><span>💵 Efec. Bs:</span><b>Bs. ${sBs.toFixed(2)}</b></div>
+                    <div style="display:flex; justify-content:space-between; color:var(--usd)"><span>💵 Efec. $:</span><b>$ ${sUsd.toFixed(2)}</b></div>
+                </div>
+                <hr style="opacity:0.2; margin:20px 0;">
+                <h2 style="text-align:center; margin:0; color:var(--bs)">TOTAL BS: ${totalEnBolivares.toLocaleString('es-VE',{minimumFractionDigits:2})}</h2>
+                <h2 style="text-align:center; margin:10px 0 0 0; color:var(--usd)">TOTAL $: $${sUsd.toFixed(2)}</h2>
+            `;
+        }
+
+        function borrarP(c) { if(confirm("¿Eliminar?")) { let db=J
